@@ -8,7 +8,7 @@
 ##   Check LICENSE.txt for details.                                          ##
 ##                                                                           ##
 ###############################################################################
-
+{.experimental: "dotOperators".}
 # Must be includes instead of imports.
 include "system/inclrtl.nim"
 include "system/hti.nim"
@@ -18,7 +18,7 @@ import tables
 from json import nil
 from strutils import parseBiggestInt, parseFloat, parseBool, parseInt, splitLines, format
 from sequtils import toSeq
-from times import parse, format, `==`, Time, TimeInfo
+from times import parse, format, `==`, Time, DateTime
 import hashes
 
 ###########
@@ -78,7 +78,7 @@ type
       strVal: string
 
     of valTime:
-      timeVal: times.TimeInfo
+      timeVal: times.DateTime
 
     of valSeq, valSet:
       seqVal: seq[ValueRef]
@@ -222,7 +222,7 @@ proc isZero*(v: Value): bool =
   of valFloat:
     result = v.floatVal == 0
   of valString:
-    result = v.strVal == nil or v.strVal == ""
+    result =  v.strVal == ""
   of valPointer:
     result = v.pointerVal == nil
   of valObj:
@@ -310,12 +310,12 @@ proc toValue*[T](val: T): Value =
   
   # String. 
   when val is string:
-    var strVal = if val == nil: "" else: val
+    var strVal = val
     result = Value(kind: valString, `strVal`: strVal)
 
   when val is times.Time:
     result = Value(kind: valTime, timeVal: times.getLocalTime(val))
-  when val is times.TimeInfo:
+  when val is times.DateTime:
     result = Value(kind: valTime, timeVal: val)
 
   when val is seq or val is array:
@@ -693,7 +693,7 @@ proc determineValueKind*(x: string): ValueKind =
     result = valString
   of "pointer", "ptr":
     result = valPointer
-  of "Time", "TimeInfo":
+  of "Time", "DateTime":
     result = valTime
   else:
     result = valUnknown
@@ -723,7 +723,7 @@ proc determineValueKind*(x: typedesc): ValueKind =
   when x is string:
     result = valString
 
-  when x is times.Time or x is times.TimeInfo:
+  when x is times.Time or x is times.DateTime:
     result = valTime
 
   when x is seq or x is array:
@@ -969,10 +969,10 @@ proc asString*(v: ValueRef): string =
 
 # Time.
 
-proc getTime*(v: Value): times.TimeInfo =
+proc getTime*(v: Value): times.DateTime =
   v.timeVal
 
-proc getTime*(v: ValueRef): times.TimeInfo =
+proc getTime*(v: ValueRef): times.DateTime =
   v.timeVal
 
 # Sequence, set, map.
@@ -1048,7 +1048,7 @@ proc `[]`*(v: Value, typ: typedesc): any =
 
   when typ is times.Time:
     result = times.timeInfoToTime(v.getTime())
-  when typ is times.TimeInfo:
+  when typ is times.DateTime:
     result = v.getTime()
 
   # TODO: object, sequence.
@@ -1079,8 +1079,8 @@ proc toValueRef*(n: json.JsonNode): ValueRef =
     result.kind = valNil 
   of json.JObject:
     result = newValueMap()
-    for item in n.fields:
-      result[item.key] = toValueRef(item.val)
+    for k,v in n.fields:
+      result[k] = toValueRef(v)
   of json.JArray:
     new(result)
     result.kind = valSeq
@@ -1156,9 +1156,6 @@ proc fromJson*(jsonContent: string): ValueRef =
 ######################
 
 proc strToChar(str: string): char =
-  if str == nil:
-    raise newConversionError("Can't convert nil string.")
-
   case str.len():
   of 0:
     result = '\0'

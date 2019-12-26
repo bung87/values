@@ -134,7 +134,7 @@ Suite("Values"):
         var ti = times.getLocalTime(t)
         toValue(t).isTime().should beTrue()
         toValue(t).getTime().should equal ti
-        toValue(t)[times.TimeInfo].should equal ti
+        toValue(t)[times.DateTime].should equal ti
         toValue(t)[times.Time].should equal t
 
         toValueRef(t).isTime().should beTrue()
